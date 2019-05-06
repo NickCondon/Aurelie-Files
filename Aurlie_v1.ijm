@@ -1,0 +1,91 @@
+path = getDirectory("Choose Source Directory ");
+list = getFileList(path);
+//setBatchMode(true);
+resultsDir = path+"Results/";
+File.makeDirectory(resultsDir);
+
+summaryFile = File.open(resultsDir+"Results.xls");
+print(summaryFile,"Image\t Count \t Red Intensity \t Green Intensity");
+run("Clear Results");
+
+for (i=0; i<list.length; i++) {
+if (endsWith(list[i],".tif")){
+  		open(path+list[i]);
+  		run("Z Project...", "projection=[Sum Slices]");
+  		windowtitle = getTitle();
+  		run("Make Composite");
+   		run("Split Channels");
+  		run("Clear Results");
+
+	selectWindow("C2-"+windowtitle);
+		rename("Green");
+	selectWindow("C1-"+windowtitle);
+  		rename("Red");
+
+  		run("Subtract Background...", "rolling=100");
+  		run("Find Maxima...", "noise=5000 output=[Single Points]");
+  			rename("Points");
+  		setOption("BlackBackground", false);
+  		run("Dilate");
+  		run("Set Measurements...", "mean redirect=None decimal=3");
+  		run("Analyze Particles...", "exclude add");
+  		selectWindow("Red");
+  		roiManager("multi-measure measure_all");
+
+	redi=newArray(nResults);
+for (r=0; r<nResults();r++){
+		redi[r] = getResult("Mean", r);	
+		print(redi[r]);
+		//r=r++;
+		}
+ 		
+
+ 	selectWindow("Green");
+ 	run("Subtract Background...", "rolling=10");
+ 	run("Clear Results");
+ 	roiManager("multi-measure measure_all");
+ 	greeni=newArray(nResults);
+ 		for (g=0; g<nResults();g++){
+				greeni[g] = getResult("Mean", g);	
+				print(greeni[g]);
+				//g=g++;
+ 		}
+  
+    
+  for (j=0 ; j<nResults ; j++) {  
+     
+     Red = redi[j];
+     Green = getResult("Mean",j);
+    print(getResult("Label", j));
+    print(summaryFile,windowtitle+"\t"+Label+"\t"+Red+"\t"+Green);
+  
+   }  
+//PercentRed = NumRed / NumNuc;
+  
+ // print(summaryFile,windowtitle+"\t"+redi[r]+"\t"+greeni[g]);
+}
+  run("Clear Results");
+
+
+//Section 6
+//Outputing results files into subdirectory called 'Results.' The script will close and clear all relevant
+//information before moving onto the next file in the list, until finished.
+ // saveAs("Results", resultsDir+ windowtitle + "Results.csv");
+  selectWindow("Red");
+  saveAs("Tiff", resultsDir+ windowtitle + "Red.tif");
+  close();
+  selectWindow("Green");
+  saveAs("Tiff", resultsDir+ windowtitle + "Green.tif");
+  close();
+ selectWindow("Points");
+  saveAs("Tiff", resultsDir+ windowtitle + "Points.tif");
+ close();  
+  roiManager("Save", resultsDir+ windowtitle + "RoiSet.zip");
+  run("Clear Results");
+  selectWindow("ROI Manager");
+  roiManager("Delete");
+}
+
+title = "Batch Completed";
+msg = "Put down that coffee! Your analysis is finished";
+waitForUser(title, msg);          
